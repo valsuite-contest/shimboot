@@ -1,0 +1,18 @@
+[package]
+name = "shimboot-shim"
+version = "0.1.0"
+edition = "2021"
+authors = ["Shimboot Contributors"]
+license = "GPL-3.0"
+description = "A Rust library for managing and editing Chromebook RMA shims"
+repository = "https://github.com/ading2210/shimboot"
+keywords = ["chromebook", "chromeos", "bootloader", "shim"]
+categories = ["filesystem", "os"]
+
+[dependencies]
+flate2 = "1.0"
+cpio = "0.3"
+thiserror = "1.0"
+
+[dev-dependencies]
+tempfile = "3.8"

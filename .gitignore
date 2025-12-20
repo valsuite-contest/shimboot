@@ -1,3 +1,7 @@
 /bootloader/bin/cryptsetup
 /data
 /*.bin
+
+# Rust build artifacts
+/target
+Cargo.lock
