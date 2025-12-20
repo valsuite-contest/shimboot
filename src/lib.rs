@@ -86,15 +86,25 @@ impl Shim {
     }
 
     /// Extract the kernel partition from the shim
-    /// This reads partition 2 (KERN-A) which contains the kernel
+    /// 
+    /// # Note
+    /// 
+    /// This is a simplified implementation that reads the entire shim file.
+    /// In a production implementation, this should:
+    /// 1. Parse the GPT partition table
+    /// 2. Locate partition 2 (KERN-A)
+    /// 3. Extract only that partition's data
+    /// 
+    /// The current implementation works because `extract_initramfs_from_kernel`
+    /// searches for gzip magic bytes, which will find the kernel regardless of
+    /// extra data before or after it. However, this is inefficient for large
+    /// shim files.
     pub fn extract_kernel(&self) -> Result<Vec<u8>> {
-        // For simplicity, this assumes the kernel is at a known offset
-        // In production, this should parse GPT/partition table
         let mut file = File::open(&self.path)?;
         let mut kernel_data = Vec::new();
         
-        // Skip to partition 2 (approximate offset, would need proper GPT parsing)
-        // For now, just read the whole file for demonstration
+        // TODO: Implement proper GPT parsing to extract only partition 2
+        // For now, read the whole file and rely on magic byte detection
         file.read_to_end(&mut kernel_data)?;
         
         Ok(kernel_data)
@@ -324,10 +334,13 @@ fn parse_cpio(data: &[u8]) -> Result<Initramfs> {
         reader.read_exact(&mut name_bytes)?;
         let name = String::from_utf8_lossy(&name_bytes[..namesize-1]).to_string();
         
-        // Skip padding to align to 4 bytes
+        // Skip padding to align to 4 bytes (only if needed)
         let name_padding = (4 - (namesize % 4)) % 4;
-        let mut padding_buf = vec![0u8; name_padding];
-        reader.read_exact(&mut padding_buf).ok();
+        if name_padding > 0 {
+            let mut padding_buf = vec![0u8; name_padding];
+            // Padding should always be present in valid CPIO archives
+            reader.read_exact(&mut padding_buf)?;
+        }
         
         // Check for trailer (end of archive)
         if name == "TRAILER!!!" {
@@ -338,10 +351,13 @@ fn parse_cpio(data: &[u8]) -> Result<Initramfs> {
         let mut content = vec![0u8; filesize];
         reader.read_exact(&mut content)?;
         
-        // Skip padding to align to 4 bytes
+        // Skip padding to align to 4 bytes (only if needed)
         let content_padding = (4 - (filesize % 4)) % 4;
-        let mut padding_buf = vec![0u8; content_padding];
-        reader.read_exact(&mut padding_buf).ok();
+        if content_padding > 0 {
+            let mut padding_buf = vec![0u8; content_padding];
+            // Padding should always be present in valid CPIO archives
+            reader.read_exact(&mut padding_buf)?;
+        }
         
         // Add to initramfs
         let metadata = FileMetadata {

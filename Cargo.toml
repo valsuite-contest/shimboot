@@ -11,7 +11,6 @@ categories = ["filesystem", "os"]
 
 [dependencies]
 flate2 = "1.0"
-cpio = "0.3"
 thiserror = "1.0"
 
 [dev-dependencies]
