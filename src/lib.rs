@@ -45,17 +45,17 @@ pub enum ShimError {
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
 
-    #[error("Failed to find gzip compressed data in kernel")]
-    GzipNotFound,
+    #[error("Failed to find gzip compressed data in kernel (searched {0} bytes)")]
+    GzipNotFound(usize),
 
-    #[error("Failed to find cpio archive in kernel")]
-    CpioNotFound,
+    #[error("Failed to find cpio archive in decompressed kernel (searched {0} bytes)")]
+    CpioNotFound(usize),
 
-    #[error("Invalid kernel format")]
-    InvalidKernel,
+    #[error("Invalid kernel format: {0}")]
+    InvalidKernel(String),
 
-    #[error("Invalid initramfs format")]
-    InvalidInitramfs,
+    #[error("Invalid initramfs format: {0}")]
+    InvalidInitramfs(String),
 
     #[error("CPIO error: {0}")]
     Cpio(String),
@@ -288,20 +288,41 @@ impl Default for InitramfsBuilder {
 fn extract_initramfs_from_kernel(kernel_data: &[u8]) -> Result<Initramfs> {
     // Find gzip compressed data
     let gzip_offset = find_gzip_magic(kernel_data)
-        .ok_or(ShimError::GzipNotFound)?;
+        .ok_or_else(|| ShimError::GzipNotFound(kernel_data.len()))?;
     
     // Decompress the kernel
     let mut decoder = GzDecoder::new(&kernel_data[gzip_offset..]);
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed)
-        .map_err(|_| ShimError::InvalidKernel)?;
+        .map_err(|e| ShimError::InvalidKernel(format!("Failed to decompress gzip data: {}", e)))?;
     
-    // Find CPIO archive in decompressed data
-    let cpio_offset = find_cpio_magic(&decompressed)
-        .ok_or(ShimError::CpioNotFound)?;
+    // Find all CPIO archives in decompressed data
+    let cpio_positions = find_all_cpio_magic(&decompressed);
     
-    // Parse CPIO archive
-    parse_cpio(&decompressed[cpio_offset..])
+    if cpio_positions.is_empty() {
+        return Err(ShimError::CpioNotFound(decompressed.len()));
+    }
+    
+    // Try each CPIO archive until we find one with files
+    let mut last_error = None;
+    for cpio_offset in cpio_positions {
+        match parse_cpio(&decompressed[cpio_offset..]) {
+            Ok(initramfs) => {
+                // Successfully parsed and has files
+                return Ok(initramfs);
+            }
+            Err(e) => {
+                // Store the error and try next CPIO archive
+                last_error = Some(e);
+                continue;
+            }
+        }
+    }
+    
+    // None of the CPIO archives worked
+    Err(last_error.unwrap_or_else(|| 
+        ShimError::InvalidInitramfs("All CPIO archives failed to parse".to_string())
+    ))
 }
 
 /// Find gzip magic bytes (0x1f 0x8b) in data
@@ -310,8 +331,23 @@ fn find_gzip_magic(data: &[u8]) -> Option<usize> {
         .position(|window| window == [0x1f, 0x8b])
 }
 
-/// Find CPIO magic bytes in data
+/// Find all CPIO magic bytes positions in data
 /// CPIO ASCII format starts with "070701" or "070702"
+fn find_all_cpio_magic(data: &[u8]) -> Vec<usize> {
+    let magic1 = b"070701";
+    let magic2 = b"070702";
+    
+    let mut positions = Vec::new();
+    for i in 0..data.len().saturating_sub(6) {
+        let window = &data[i..i+6];
+        if window == magic1 || window == magic2 {
+            positions.push(i);
+        }
+    }
+    positions
+}
+
+/// Find first CPIO magic bytes in data (for backwards compatibility)
 fn find_cpio_magic(data: &[u8]) -> Option<usize> {
     let magic1 = b"070701";
     let magic2 = b"070702";
@@ -339,22 +375,45 @@ fn parse_cpio(data: &[u8]) -> Result<Initramfs> {
             break;
         }
         
-        // Parse header fields (hex ASCII)
-        let mode = parse_hex(&header_str[14..22])? as u32;
-        let filesize = parse_hex(&header_str[54..62])?;
-        let namesize = parse_hex(&header_str[94..102])?;
+        // Parse header fields (hex ASCII) - if this fails, break the loop
+        let mode = match parse_hex(&header_str[14..22]) {
+            Ok(m) => m as u32,
+            Err(_) => break,
+        };
+        let filesize = match parse_hex(&header_str[54..62]) {
+            Ok(s) => s,
+            Err(_) => break,
+        };
+        let namesize = match parse_hex(&header_str[94..102]) {
+            Ok(s) => s,
+            Err(_) => break,
+        };
+        
+        // Validate namesize to prevent issues
+        if namesize == 0 {
+            break;
+        }
         
         // Read filename
         let mut name_bytes = vec![0u8; namesize];
-        reader.read_exact(&mut name_bytes)?;
+        if reader.read_exact(&mut name_bytes).is_err() {
+            break;
+        }
+        
+        // Safely handle the name parsing
+        if namesize == 0 {
+            break;
+        }
         let name = String::from_utf8_lossy(&name_bytes[..namesize-1]).to_string();
         
         // Skip padding to align to 4 bytes (only if needed)
         let name_padding = (4 - (namesize % 4)) % 4;
         if name_padding > 0 {
             let mut padding_buf = vec![0u8; name_padding];
-            // Padding should always be present in valid CPIO archives
-            reader.read_exact(&mut padding_buf)?;
+            // If padding read fails, just break
+            if reader.read_exact(&mut padding_buf).is_err() {
+                break;
+            }
         }
         
         // Check for trailer (end of archive)
@@ -364,14 +423,18 @@ fn parse_cpio(data: &[u8]) -> Result<Initramfs> {
         
         // Read file content
         let mut content = vec![0u8; filesize];
-        reader.read_exact(&mut content)?;
+        if reader.read_exact(&mut content).is_err() {
+            break;
+        }
         
         // Skip padding to align to 4 bytes (only if needed)
         let content_padding = (4 - (filesize % 4)) % 4;
         if content_padding > 0 {
             let mut padding_buf = vec![0u8; content_padding];
-            // Padding should always be present in valid CPIO archives
-            reader.read_exact(&mut padding_buf)?;
+            // If padding read fails, just break
+            if reader.read_exact(&mut padding_buf).is_err() {
+                break;
+            }
         }
         
         // Add to initramfs
@@ -383,13 +446,20 @@ fn parse_cpio(data: &[u8]) -> Result<Initramfs> {
         initramfs.add_file(name, content, metadata);
     }
     
+    // Ensure we extracted at least some files
+    if initramfs.files.is_empty() {
+        return Err(ShimError::InvalidInitramfs(
+            "No files found in CPIO archive - archive may be empty or corrupted".to_string()
+        ));
+    }
+    
     Ok(initramfs)
 }
 
 /// Parse hex string to usize
 fn parse_hex(s: &str) -> Result<usize> {
     usize::from_str_radix(s, 16)
-        .map_err(|_| ShimError::InvalidInitramfs)
+        .map_err(|e| ShimError::InvalidInitramfs(format!("Failed to parse hex '{}': {}", s, e)))
 }
 
 #[cfg(test)]
