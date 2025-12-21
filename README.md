@@ -10,6 +10,7 @@ Shimboot is a collection of scripts for patching a Chrome OS RMA shim to serve a
 - [Features](#features)
 - [About](#about)
   * [Partition Layout](#partition-layout)
+- [Documentation](#documentation)
 - [Status](#status)
   * [Device Compatibility Table](#device-compatibility-table)
   * [TODO](#todo)
@@ -51,6 +52,12 @@ The main advantages of this approach are that you don't need to touch the device
 4. The rootfs partitions fill the rest of the disk
 
 Note that rootfs partitions have to be named `shimboot_rootfs:<partname>` for the bootloader to recognize them.
+
+## Documentation:
+- **[How Shimboot Works](HOW_IT_WORKS.md)** - Detailed technical explanation of the boot process, partition layout, and how to run custom code from shims
+- **[Rust Library Documentation](RUST_LIBRARY.md)** - Guide to using the shimboot-shim Rust library for programmatically managing and editing Chrome OS shims
+- **[Standalone Shim Injection Tool](examples/shim_inject.rs)** - **Fully standalone** Rust program that extracts, modifies, and injects custom payloads into real shim files (can be moved outside this repository)
+- **[Example: Custom Welcome Payload](examples/welcome_payload.rs)** - Demo example showing how to create initramfs structures from scratch
 
 ## Status:
 Driver support depends on the device you are using shimboot on. The `patch_rootfs.sh` script attempts to copy all the firmware and drivers from the shim and recovery image into the rootfs, so expect most things to work on other boards. Both x86_64 and ARM64 chromebooks are supported.
@@ -121,6 +128,34 @@ PRs and contributions are welcome to help implement these features.
 Note: If you are building for an ARM Chromebook, you need the `qemu-user-static` and `binfmt-support` packages.
 
 [Prebuilt images](https://github.com/ading2210/shimboot/releases) are available if you don't have a suitable device to run the build on.
+
+#### Custom Payload Development
+
+For advanced users who want to create custom bootloader payloads:
+
+**Standalone Rust Tool (Recommended)**:
+The `shimboot-shim` Rust library provides a **fully standalone** tool for injecting custom payloads into shims. This tool can be moved outside the repository and works independently of the bash scripts.
+
+```bash
+# Inject a custom "Welcome to Shimboot" payload into a real shim
+cargo run --example shim_inject -- shim-octopus.bin ./modified_shim
+```
+
+This tool:
+- ✅ Works on real Chrome OS RMA shim files
+- ✅ Is completely standalone (can be moved away from this repo)
+- ✅ Requires only Rust/Cargo (no bash scripts, binwalk, or other dependencies)
+- ✅ Extracts initramfs, injects payload, and saves modified files
+
+**Documentation**:
+- **[Rust Library Guide](RUST_LIBRARY.md)** - Complete API documentation and usage guide
+- **[How to Run Custom Code from Shims](HOW_IT_WORKS.md#custom-code-execution-from-shims)** - Technical deep-dive on custom payloads
+- **[Standalone Tool Source](examples/shim_inject.rs)** - Full source code of the injection tool
+
+For learning and experimentation without a real shim:
+```bash
+cargo run --example welcome_payload
+```
 
 <details>
   <summary><b>(not recommended) Alternatively, you can run each of the steps manually:</b></summary>
