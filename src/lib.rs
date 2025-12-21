@@ -174,19 +174,34 @@ impl Initramfs {
         
         for (path, content) in &self.files {
             let file_path = dir.join(path.trim_start_matches('/'));
-            if let Some(parent) = file_path.parent() {
-                fs::create_dir_all(parent)?;
-            }
             
-            let mut file = File::create(&file_path)?;
-            file.write_all(content)?;
+            // Check if this is a directory entry (mode & 0o040000 == directory)
+            let is_directory = if let Some(metadata) = self.metadata.get(path) {
+                (metadata.mode & 0o040000) != 0
+            } else {
+                false
+            };
             
-            // Set permissions if available
-            #[cfg(unix)]
-            if let Some(metadata) = self.metadata.get(path) {
-                use std::os::unix::fs::PermissionsExt;
-                let perms = std::fs::Permissions::from_mode(metadata.mode);
-                fs::set_permissions(&file_path, perms)?;
+            if is_directory {
+                // Create directory
+                fs::create_dir_all(&file_path)?;
+            } else {
+                // Create parent directories
+                if let Some(parent) = file_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                
+                // Create file
+                let mut file = File::create(&file_path)?;
+                file.write_all(content)?;
+                
+                // Set permissions if available
+                #[cfg(unix)]
+                if let Some(metadata) = self.metadata.get(path) {
+                    use std::os::unix::fs::PermissionsExt;
+                    let perms = std::fs::Permissions::from_mode(metadata.mode);
+                    fs::set_permissions(&file_path, perms)?;
+                }
             }
         }
         

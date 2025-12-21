@@ -175,9 +175,42 @@ impl InitramfsBuilder {
 
 The `examples/` directory contains complete examples:
 
-### Welcome Payload Example
+### Standalone Shim Injection Example (Recommended)
 
-Run the example to see how to create a custom payload:
+The `shim_inject` example is a **fully standalone** tool that can be moved outside the repository and used independently:
+
+```bash
+cargo run --example shim_inject -- <shim_file.bin> <output_dir>
+```
+
+Example:
+```bash
+cargo run --example shim_inject -- shim-octopus.bin ./modified_shim
+```
+
+This example demonstrates:
+1. **Opening a real Chrome OS RMA shim file**
+2. **Extracting the initramfs** from the kernel
+3. **Injecting a custom welcome payload** that displays "Welcome to Shimboot!"
+4. **Saving the modified initramfs** ready for repacking
+
+**This is a standalone example** - you can copy just the Rust library (`Cargo.toml`, `src/`) and the example to a new location, and it will work without any dependencies on the bash scripts from the shimboot repository.
+
+Requirements:
+- A Chrome OS RMA shim file (e.g., `shim-octopus.bin`)
+- Rust toolchain (`cargo`)
+
+The tool is completely self-contained and does not require:
+- ❌ The shimboot bash scripts
+- ❌ binwalk
+- ❌ Python
+- ❌ Any other dependencies
+
+After running, you'll get a modified initramfs directory with your custom payload injected and ready to repack.
+
+### Demo Example (For Learning)
+
+Run the demo example to see how to build initramfs from scratch:
 
 ```bash
 cargo run --example welcome_payload
@@ -185,9 +218,8 @@ cargo run --example welcome_payload
 
 This example demonstrates:
 1. Creating a custom welcome message payload
-2. Injecting it into the bootloader
-3. Modifying the init script to execute the payload
-4. Building and saving the modified initramfs
+2. Building an initramfs structure from scratch
+3. Understanding the API without needing a real shim file
 
 The output is saved to `/tmp/shimboot_custom_initramfs/` for inspection.
 
