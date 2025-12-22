@@ -1,0 +1,46 @@
+[package]
+name = "shimboot"
+version = "0.1.0"
+edition = "2021"
+authors = ["ading2210", "Rust rewrite contributors"]
+license = "GPL-3.0-or-later"
+description = "Boot desktop Linux from a Chrome OS RMA shim"
+
+[[bin]]
+name = "shimboot"
+path = "src/main.rs"
+
+[[bin]]
+name = "shimboot-build"
+path = "src/bin/build.rs"
+
+[[bin]]
+name = "build_complete"
+path = "src/bin/build_complete.rs"
+
+[[bin]]
+name = "build_rootfs"
+path = "src/bin/build_rootfs.rs"
+
+[[bin]]
+name = "patch_rootfs"
+path = "src/bin/patch_rootfs.rs"
+
+[[bin]]
+name = "build_squashfs"
+path = "src/bin/build_squashfs.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.10"
+walkdir = "2.4"
+flate2 = "1.0"
+tar = "0.4"
+tempfile = "3.10"
+nix = { version = "0.29", features = ["mount", "fs", "user"] }
+libc = "0.2"
+colored = "2.1"

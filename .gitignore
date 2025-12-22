@@ -1,3 +1,7 @@
 /bootloader/bin/cryptsetup
 /data
 /*.bin
+
+# Added by cargo
+
+/target
