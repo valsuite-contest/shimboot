@@ -2,6 +2,8 @@
 
 Shimboot is a collection of scripts for patching a Chrome OS RMA shim to serve as a bootloader for a standard Linux distribution. It allows you to boot a full desktop Debian install on a Chromebook, without needing to unenroll it or modify the firmware.
 
+**NEW: Complete Rust Implementation Available!** See [RUST_README.md](RUST_README.md) for details on the Rust rewrite with improved type safety, error handling, and performance.
+
 | <img src="/website/assets/shimboot_demo_1.jpg" alt="Shimboot (KDE) on an HP Chromebook 11 G9 EE." width="400"/> | <img src="/website/assets/shimboot_demo_2.jpg" alt="Shimboot (XFCE) on an Acer Chromebook 311 C722." width="400"/> |  
 | ----- | ----- |
 | Shimboot (KDE) on an HP Chromebook 11 G9 EE | Shimboot (XFCE) on an Acer Chromebook 311 C722 |
@@ -19,6 +21,7 @@ Shimboot is a collection of scripts for patching a Chrome OS RMA shim to serve a
   * [Build Instructions](#build-instructions)
   * [Booting the Image](#booting-the-image)
 - [FAQ](#faq)
+- [Rust Implementation](#rust-implementation)
 - [Copyright](#copyright)
   * [Copyright Notice](#copyright-notice)
 
@@ -249,6 +252,35 @@ $ nmcli connection edit <your connection name>
 > save
 > activate
 ```
+
+## Rust Implementation
+
+Shimboot has been completely rewritten in Rust! The Rust implementation provides:
+
+- **Complete feature parity** with all original functionality
+- **Better type safety** and compile-time guarantees
+- **Improved error handling** with detailed error messages
+- **Enhanced maintainability** for future development
+- **Same external dependencies** and system requirements
+
+### Quick Start with Rust
+
+```bash
+# Build the Rust version
+cargo build --release
+
+# Use the same interface as the Bash scripts
+sudo ./target/release/build_complete dedede
+
+# Or use the unified command structure
+sudo ./target/release/shimboot build-complete dedede desktop=kde
+```
+
+For detailed information about the Rust implementation:
+- See [RUST_README.md](RUST_README.md) for complete documentation
+- See [RUST_COMPARISON.md](RUST_COMPARISON.md) for a detailed comparison
+
+Both Bash and Rust implementations are fully supported and can be used interchangeably.
 
 ## Copyright:
 Shimboot is licensed under the [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.txt). 
