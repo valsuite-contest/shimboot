@@ -127,16 +127,17 @@ fn bootstrap_debian_ubuntu(rootfs_dir: &Path, release: &str, arch: &str, distro:
         "http://deb.debian.org/debian/"
     };
 
-    let mut args = vec![
-        "--arch", arch,
+    let mut args = vec!["--arch", arch];
+    
+    if distro == "debian" {
+        args.push("--components=main,contrib,non-free,non-free-firmware");
+    }
+    
+    args.extend_from_slice(&[
         release,
         rootfs_dir.to_str().unwrap(),
         repo_url,
-    ];
-
-    if distro == "debian" {
-        args.splice(1..1, vec!["--components=main,contrib,non-free,non-free-firmware"]);
-    }
+    ]);
 
     run_command_inherit("debootstrap", &args)?;
 

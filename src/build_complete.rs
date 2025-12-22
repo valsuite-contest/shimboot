@@ -20,13 +20,13 @@ pub fn run(board: &str, args: HashMap<String, String>) -> Result<()> {
     let compress_img = args.get("compress_img").is_some();
     let rootfs_dir = args.get("rootfs_dir").map(|s| PathBuf::from(s));
     let quiet = args.get("quiet").is_some();
-    let desktop = args.get("desktop").unwrap_or(&"xfce".to_string()).clone();
+    let desktop = args.get("desktop").cloned().unwrap_or_else(|| "xfce".to_string());
     let data_dir = args.get("data_dir")
         .map(|s| PathBuf::from(s))
         .unwrap_or_else(|| PathBuf::from("./data"));
-    let mut arch = args.get("arch").unwrap_or(&"amd64".to_string()).clone();
+    let mut arch = args.get("arch").cloned().unwrap_or_else(|| "amd64".to_string());
     let release = args.get("release").cloned();
-    let distro = args.get("distro").unwrap_or(&"debian".to_string()).clone();
+    let distro = args.get("distro").cloned().unwrap_or_else(|| "debian".to_string());
     let luks = args.get("luks").is_some();
 
     // Auto-detect ARM boards
