@@ -149,6 +149,9 @@ pub fn run(board: &str, args: HashMap<String, String>) -> Result<()> {
         build_args.insert("user_passwd".to_string(), "user".to_string());
         build_args.insert("arch".to_string(), arch.clone());
         build_args.insert("distro".to_string(), distro.clone());
+        
+        // Debug: Show what we're passing to build_rootfs
+        eprintln!("DEBUG build_complete: passing arch='{}' to build_rootfs", arch);
 
         crate::build_rootfs::run(
             rootfs_dir.to_str().unwrap(),

@@ -19,6 +19,9 @@ pub fn run(
         .unwrap_or("task-xfce-desktop");
     let arch = args.get("arch").map(|s| s.as_str()).unwrap_or("amd64");
     let distro = args.get("distro").map(|s| s.as_str()).unwrap_or("debian");
+    
+    // Debug: Print what arch we're using
+    eprintln!("DEBUG build_rootfs: arch='{}', distro='{}'", arch, distro);
 
     std::fs::create_dir_all(rootfs_dir)?;
 
@@ -116,6 +119,9 @@ fn check_and_remount(rootfs_dir: &Path) -> Result<()> {
 
 fn bootstrap_debian_ubuntu(rootfs_dir: &Path, release: &str, arch: &str, distro: &str) -> Result<()> {
     print_info(&format!("bootstraping {} chroot", distro));
+    
+    // Debug: Show what we're passing to debootstrap
+    eprintln!("DEBUG bootstrap_debian_ubuntu: arch parameter = '{}'", arch);
 
     let repo_url = if distro == "ubuntu" {
         if arch == "amd64" {
@@ -138,6 +144,9 @@ fn bootstrap_debian_ubuntu(rootfs_dir: &Path, release: &str, arch: &str, distro:
         rootfs_dir.to_str().unwrap(),
         repo_url,
     ]);
+    
+    // Debug: Show the complete command
+    eprintln!("DEBUG debootstrap command: debootstrap {}", args.join(" "));
 
     run_command_inherit("debootstrap", &args)?;
 
